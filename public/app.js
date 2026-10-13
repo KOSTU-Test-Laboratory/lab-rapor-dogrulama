@@ -16,16 +16,16 @@ function extra(c,d,ref){
  if(d.signed)c.append(E('p','ok','✓ Kurum dijital imzası doğrulandı · Anahtar: '+d.fp.slice(0,12)));
  const s=E('div','acc');c.append(s);s.append(E('h3','','Orijinal belgeye eriş'));
  if(!d.can_dl){s.append(E('p','sub','Bu belge için çevrimiçi erişim tanımlı değil. Lütfen laboratuvarla iletişime geçin.'));return}
- const i=E('input'),w=E('div','row'),v=E('button','','Görüntüle'),dn=E('button','s2','İndir'),m=E('p','bad'),bs=[v,dn];
- i.type='password';i.placeholder='Müşteri parolası';i.autocomplete='off';i.setAttribute('aria-label','Müşteri parolası');v.style.width=dn.style.width='auto';
- v.onclick=()=>getDoc(d,ref,i,bs,m,1);dn.onclick=()=>getDoc(d,ref,i,bs,m,0);i.onkeydown=e=>{if(e.key==='Enter')v.click()};
- s.append(E('p','sub','Size iletilen müşteri parolasıyla seri no/QR içermeyen orijinal PDF’e erişebilirsiniz.'),w,m);w.append(i,v,dn)}
-async function getDoc(d,ref,i,bs,m,view){
- m.textContent='';if(!i.value){m.textContent='Lütfen parolayı girin';return}
+ const w=E('div','row'),v=E('button','','Görüntüle'),dn=E('button','s2','İndir'),m=E('p','bad'),bs=[v,dn];
+ v.style.width=dn.style.width='auto';
+ v.onclick=()=>getDoc(d,ref,bs,m,1);dn.onclick=()=>getDoc(d,ref,bs,m,0);
+ s.append(E('p','sub','Seri no/QR içermeyen orijinal PDF’e buradan erişebilirsiniz.'),w,m);w.append(v,dn)}
+async function getDoc(d,ref,bs,m,view){
+ m.textContent='';
  const w=view?window.open('','_blank'):null;bs.forEach(b=>b.disabled=true);
- try{const r=await fetch('/api/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...ref,password:i.value})});
+ try{const r=await fetch('/api/download?'+new URLSearchParams(ref));
   if(!r.ok){if(w)w.close();m.textContent=(await r.json()).error||'Hata';return}
   const u=URL.createObjectURL(await r.blob());
   if(view&&w)w.location=u;else{const a=E('a');a.href=u;a.download=d.serial+'.pdf';a.click()}
-  i.value='';setTimeout(()=>URL.revokeObjectURL(u),6e4)
+  setTimeout(()=>URL.revokeObjectURL(u),6e4)
  }catch{if(w)w.close();m.textContent='Bağlantı hatası'}finally{bs.forEach(b=>b.disabled=false)}}

@@ -106,9 +106,9 @@ docker compose logs --tail 50
 ## 8. Test edin
 1. Tarayıcıda `https://ALAN_ADI/admin` açın: giriş ekranı gelmeli, adres çubuğunda kilit simgesi olmalı.
 2. `ADMIN_PASSWORD` ile giriş yapın.
-3. Müşteri adı `TEST` olacak şekilde örnek bir PDF yükleyin. Ekranda çıkan **seri no** ve **müşteri parolasını** kopyalayın (parola yalnızca bir kez gösterilir; sonradan "Müşteriler" tablosundan da görülebilir).
+3. Müşteri adı `TEST` olacak şekilde örnek bir PDF yükleyin. Ekranda çıkan **seri no**'yu kopyalayın.
 4. "QR indir" ile QR'ı alın, telefonunuzla **kurum Wi‑Fi'si dışında (mobil veri)** okutun: "Belge geçerli" sayfası açılmalı.
-5. Sayfadaki parola alanına müşteri parolasını girip **Görüntüle** ve **İndir**'i deneyin.
+5. Sayfadaki **Görüntüle** ve **İndir** düğmelerini deneyin (parola gerekmez).
 6. Testi bitirince test belgesini panelden **Sil**'in (kayıt "geçersiz" olarak kalır; bu normaldir).
 
 ## 9. Yedekleme (en önemli iş)
@@ -178,7 +178,7 @@ Yardım isterken `docker compose ps` ve `docker compose logs --tail 100` çıkt�
 
 ## 14. Teslim kontrol listesi
 - [ ] `https://ALAN_ADI` kilitle açılıyor, admin girişi çalışıyor
-- [ ] Test QR'ı mobil veriyle okutuldu, parolayla görüntüleme/indirme çalıştı
+- [ ] Test QR'ı mobil veriyle okutuldu, görüntüleme/indirme çalıştı
 - [ ] `.env` ve `QR_SECRET` güvenli yerde (parola yöneticisi/kasa)
 - [ ] Yedek alındı, **sunucu dışına** kopyalandı, geri yükleme denendi
 - [ ] `sudo reboot` sonrası site kendiliğinden geri geldi

@@ -7,9 +7,7 @@ fs.mkdirSync(DATA_DIR+'/pdfs',{recursive:true});
 const db=new Db(DATA_DIR+'/app.db');
 db.exec(`CREATE TABLE IF NOT EXISTS docs(id INTEGER PRIMARY KEY AUTOINCREMENT,serial TEXT UNIQUE,token TEXT UNIQUE NOT NULL,product,brand_model,category,summary,product_serial,test_date,customer,officer,file,sha256,status TEXT DEFAULT 'valid',reason,new_serial,created_at TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY AUTOINCREMENT,ts TEXT DEFAULT CURRENT_TIMESTAMP,ip,action,detail);`);
-for(const c of['pw TEXT','sig TEXT','customer_id INTEGER','fails INTEGER DEFAULT 0','lock_until INTEGER DEFAULT 0'])try{db.exec('ALTER TABLE docs ADD COLUMN '+c)}catch{}
-db.exec(`CREATE TABLE IF NOT EXISTS customers(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT UNIQUE COLLATE NOCASE NOT NULL,pw TEXT NOT NULL,fails INTEGER DEFAULT 0,lock_until INTEGER DEFAULT 0)`);
-try{db.exec('ALTER TABLE customers ADD COLUMN pw_enc TEXT')}catch{}
+try{db.exec('ALTER TABLE docs ADD COLUMN sig TEXT')}catch{}
 try{db.exec('ALTER TABLE audit ADD COLUMN hash TEXT')}catch{}
 const ah=(p,ts,ip,a,d)=>crypto.createHash('sha256').update(`${p}|${ts}|${ip}|${a}|${d}`).digest('hex');
 const log=(q,a,d='')=>{const l=db.prepare('SELECT hash FROM audit WHERE hash IS NOT NULL ORDER BY id DESC LIMIT 1').get(),ts=new Date().toISOString();
@@ -32,18 +30,6 @@ const PUBPEM=PUB.export({type:'spki',format:'pem'}),FP=crypto.createHash('sha256
 const payload=(sn,sha)=>Buffer.from(`KTLAB-IMZA-v1|${sn}|${sha}`);
 const sign=(sn,sha)=>crypto.sign(null,payload(sn,sha),PRIV).toString('base64');
 const sigOk=d=>!!d.sig&&crypto.verify(null,payload(d.serial,d.sha256),PUB,Buffer.from(d.sig,'base64'));
-// Belge parolası: scrypt ile saklanır
-const norm=x=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,40);
-const hp=p=>{const s=crypto.randomBytes(16);return s.toString('hex')+':'+crypto.scryptSync(p,s,32).toString('hex')};
-const pwOk=(p,h)=>{const[s,k]=h.split(':');return crypto.timingSafeEqual(crypto.scryptSync(p,Buffer.from(s,'hex'),32),Buffer.from(k,'hex'))};
-// Admin'in müşteri parolasını görebilmesi için parola ayrıca AES-256-GCM ile şifreli saklanır
-const KP=sub('pw');
-const encPw=p=>{const iv=crypto.randomBytes(12),c=crypto.createCipheriv('aes-256-gcm',KP,iv);return Buffer.concat([iv,c.update(p),c.final(),c.getAuthTag()]).toString('base64')};
-const decPw=e=>{const b=Buffer.from(e,'base64'),c=crypto.createDecipheriv('aes-256-gcm',KP,b.subarray(0,12));c.setAuthTag(b.subarray(b.length-16));return Buffer.concat([c.update(b.subarray(12,b.length-16)),c.final()]).toString()};
-// Eski kayıtlar: müşteri kaydı ve imza yoksa otomatik tamamla
-for(const d of db.prepare('SELECT id,customer FROM docs WHERE customer_id IS NULL').all()){let c=db.prepare('SELECT id FROM customers WHERE name=?').get(d.customer);
- if(!c){const p=rnd(16);c={id:db.prepare('INSERT INTO customers(name,pw,pw_enc) VALUES(?,?,?)').run(d.customer,hp(norm(p)),encPw(p)).lastInsertRowid}}
- db.prepare('UPDATE docs SET customer_id=? WHERE id=?').run(c.id,d.id)}
 for(const d of db.prepare('SELECT id,serial,sha256 FROM docs WHERE sig IS NULL AND sha256 IS NOT NULL').all())db.prepare('UPDATE docs SET sig=? WHERE id=?').run(sign(d.serial,d.sha256),d.id);
 const qrUrl=n=>`${BASE_URL}/v/${n}.${mac(KQ,n,12).toString('base64url')}`;
 const app=express();app.disable('x-powered-by');app.set('trust proxy',process.env.TRUST_PROXY==='1'?1:false);
@@ -72,24 +58,15 @@ function create(q,s,old){
   if(buf.subarray(0,5).toString()!=='%PDF-'||b.some(x=>!x)||!/^\d{4}-\d{2}-\d{2}$/.test(b[4]))return s.status(400).json({error:'Geçerli bir PDF ve zorunlu alanlar gerekli'});
   const name=crypto.randomUUID()+'.enc',sha=crypto.createHash('sha256').update(buf).digest('hex'),iv=crypto.randomBytes(12),c=crypto.createCipheriv('aes-256-gcm',KF,iv);
   fs.writeFileSync(`${DATA_DIR}/pdfs/${name}`,Buffer.concat([iv,c.update(buf),c.final(),c.getAuthTag()]));
-  let np=null;const sn=db.transaction(()=>{
-   let cu=db.prepare('SELECT id FROM customers WHERE name=?').get(b[5]);
-   if(!cu){np=rnd(16);cu={id:db.prepare('INSERT INTO customers(name,pw,pw_enc) VALUES(?,?,?)').run(b[5],hp(norm(np)),encPw(np)).lastInsertRowid}}
+  const sn=db.transaction(()=>{
    for(let i=0;;i++){const x=mkSerial();try{
-   db.prepare('INSERT INTO docs(serial,token,product,brand_model,category,summary,product_serial,test_date,customer,officer,file,sha256,pw,sig,customer_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(x,crypto.randomBytes(16).toString('base64url'),b[0],b[1],b[2],sm,b[3],b[4],b[5],b[6],name,sha,null,sign(x,sha),cu.id);
+   db.prepare('INSERT INTO docs(serial,token,product,brand_model,category,summary,product_serial,test_date,customer,officer,file,sha256,sig) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').run(x,crypto.randomBytes(16).toString('base64url'),b[0],b[1],b[2],sm,b[3],b[4],b[5],b[6],name,sha,sign(x,sha));
    if(old)db.prepare("UPDATE docs SET status='invalid',reason='Yeni sürüm yüklendi',new_serial=? WHERE id=?").run(x,old.id);return x}catch(e){if(i>4)throw e}}})();
-  log(q,old?'replace':'create',sn);s.json({serial:sn,password:np&&np.match(/.{4}/g).join('-')});
+  log(q,old?'replace':'create',sn);s.json({serial:sn});
  }finally{if(f)fs.rmSync(f.path,{force:true})}
 }
 app.post('/api/admin/docs',auth,up.single('pdf'),(q,s)=>create(q,s));
 app.post('/api/admin/docs/:id/replace',auth,up.single('pdf'),(q,s)=>{const o=db.prepare("SELECT id FROM docs WHERE id=? AND status='valid'").get(q.params.id);o?create(q,s,o):s.status(404).json({error:'Geçerli belge bulunamadı'})});
-app.get('/api/admin/customers',auth,(q,s)=>s.json(db.prepare('SELECT c.id,c.name,c.pw_enc IS NOT NULL has,(SELECT COUNT(*) FROM docs WHERE customer_id=c.id) n FROM customers c ORDER BY c.name').all()));
-app.get('/api/admin/customers/:id/password',auth,(q,s)=>{s.set('Cache-Control','no-store');
- const c=db.prepare('SELECT pw_enc FROM customers WHERE id=?').get(q.params.id);if(!c||!c.pw_enc)return s.json({password:null});
- log(q,'pw_view',q.params.id);try{s.json({password:decPw(c.pw_enc).match(/.{4}/g).join('-')})}catch{s.json({password:null})}});
-app.post('/api/admin/customers/:id/reset',auth,(q,s)=>{const p=rnd(16);
- if(!db.prepare('UPDATE customers SET pw=?,pw_enc=?,fails=0,lock_until=0 WHERE id=?').run(hp(norm(p)),encPw(p),q.params.id).changes)return s.sendStatus(404);
- log(q,'pw_reset',q.params.id);s.json({password:p.match(/.{4}/g).join('-')})});
 app.get('/api/admin/docs',auth,(q,s)=>s.json(db.prepare('SELECT id,serial,product,brand_model,category,summary,product_serial,test_date,customer,officer,status,reason,new_serial FROM docs ORDER BY id DESC').all()));
 app.get('/api/admin/docs/:id/qr.png',auth,(q,s,n)=>(async()=>{const d=db.prepare('SELECT token,serial FROM docs WHERE id=?').get(q.params.id);if(!d)return s.sendStatus(404);
  s.type('png').set('Content-Disposition',`attachment; filename="${d.serial}.png"`).send(await QR.toBuffer(qrUrl(d.token),{width:800,margin:2,errorCorrectionLevel:'H',color:{dark:'#0F3B57'}}))})().catch(n));
@@ -104,7 +81,7 @@ const mask=x=>String(x).split(/\s+/).map(w=>w[0]+'***').join(' ');
 const view=d=>{
  if(!d)return{status:'invalid',reason:'Kayıt bulunamadı veya QR kodu geçersiz'};
  if(d.status!=='valid')return{status:'invalid',serial:d.serial,reason:d.reason,new_serial:d.new_serial};
- return{status:'valid',serial:d.serial,product:d.product,brand_model:d.brand_model,category:d.category,summary:d.summary,product_serial:'****'+d.product_serial.slice(-4),test_date:d.test_date,customer:mask(d.customer),officer:d.officer,sha256:d.sha256,signed:sigOk(d),fp:FP,can_dl:!!((d.pw||d.customer_id)&&d.file)}};
+ return{status:'valid',serial:d.serial,product:d.product,brand_model:d.brand_model,category:d.category,summary:d.summary,product_serial:'****'+d.product_serial.slice(-4),test_date:d.test_date,customer:mask(d.customer),officer:d.officer,sha256:d.sha256,signed:sigOk(d),fp:FP,can_dl:!!d.file}};
 app.get('/api/verify/:t',pub,(q,s)=>{const[n,sg]=String(q.params.t).slice(0,60).split('.');let ok=false;
  try{const g=Buffer.from(sg||'','base64url');ok=g.length===12&&crypto.timingSafeEqual(mac(KQ,n,12),g)}catch{}
  const d=ok&&db.prepare('SELECT * FROM docs WHERE token=?').get(n);log(q,'verify',d?d.serial:ok?'miss':'forged');s.json(view(d||null))});
@@ -112,19 +89,13 @@ app.get('/api/lookup',pub,(q,s)=>{const sn=String(q.query.serial||'').trim().toU
  const d=okSerial(sn)&&db.prepare('SELECT * FROM docs WHERE serial=?').get(sn);log(q,'lookup',d?sn:'miss');s.json(view(d||null))});
 
 const dlim=rl({windowMs:6e4,max:10,message:{error:'Çok fazla deneme, bir dakika bekleyin'}});
-const dfail=rl({windowMs:9e5,max:5,skipSuccessfulRequests:true,message:{error:'Çok fazla hatalı deneme, 15 dakika sonra tekrar deneyin'}});
-app.post('/api/download',dlim,dfail,(q,s)=>{
- const b=q.body||{};let d;
- if(b.token){const[n,sg]=String(b.token).slice(0,60).split('.');let ok=false;
+app.get('/api/download',dlim,(q,s)=>{
+ let d;
+ if(q.query.token){const[n,sg]=String(q.query.token).slice(0,60).split('.');let ok=false;
   try{const g=Buffer.from(sg||'','base64url');ok=g.length===12&&crypto.timingSafeEqual(mac(KQ,n,12),g)}catch{}
   d=ok&&db.prepare('SELECT * FROM docs WHERE token=?').get(n)}
- else{const sn=String(b.serial||'').trim().toUpperCase();d=okSerial(sn)&&db.prepare('SELECT * FROM docs WHERE serial=?').get(sn)}
- const no=()=>s.status(403).json({error:'Parola hatalı veya erişim yok'});
- const cu=d&&d.customer_id&&db.prepare('SELECT * FROM customers WHERE id=?').get(d.customer_id),H=cu||d,T=cu?'customers':'docs';
- if(!d||d.status!=='valid'||!H.pw||!d.file)return no();
- if(Date.now()<H.lock_until)return s.status(429).json({error:'Çok fazla hatalı deneme, 15 dakika sonra tekrar deneyin'});
- if(!pwOk(norm(b.password),H.pw)){const f=(H.fails||0)+1;db.prepare(`UPDATE ${T} SET fails=?,lock_until=? WHERE id=?`).run(f>=20?0:f,f>=20?Date.now()+9e5:0,H.id);log(q,'dl_fail',d.serial);return no()}
- db.prepare(`UPDATE ${T} SET fails=0 WHERE id=?`).run(H.id);
+ else{const sn=String(q.query.serial||'').trim().toUpperCase().slice(0,30);d=okSerial(sn)&&db.prepare('SELECT * FROM docs WHERE serial=?').get(sn)}
+ if(!d||d.status!=='valid'||!d.file){log(q,'dl_miss');return s.status(404).json({error:'Belge bulunamadı veya erişim yok'})}
  try{const e=fs.readFileSync(`${DATA_DIR}/pdfs/${d.file}`),c=crypto.createDecipheriv('aes-256-gcm',KF,e.subarray(0,12));c.setAuthTag(e.subarray(e.length-16));
   const pdf=Buffer.concat([c.update(e.subarray(12,e.length-16)),c.final()]);
   if(crypto.createHash('sha256').update(pdf).digest('hex')!==d.sha256||!sigOk(d))throw 0;
