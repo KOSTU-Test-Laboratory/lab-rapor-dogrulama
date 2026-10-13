@@ -1,0 +1,14 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Yönetim</title><link rel="icon" href="/logo.png"><link rel="stylesheet" href="/style.css"></head><body>
+<i class="bl b1"></i><i class="bl b2"></i>
+<header><img class="logo" src="/logo.png" alt="KOSTÜ"><h1>Yönetim paneli</h1></header>
+<main style="max-width:920px">
+<div id="login" class="card"><form id="lf" class="row"><input id="pw" type="password" placeholder="Yönetici parolası" required autocomplete="current-password"><button style="width:auto">Giriş yap</button></form></div>
+<div id="panel" hidden>
+<form id="nf" class="card"><b>Yeni belge</b><div class="g">
+<input type="file" name="pdf" accept="application/pdf" required>
+<input name="product" placeholder="Ürün adı" required><input name="brand_model" placeholder="Marka / Model" required><input name="category" list="cl" placeholder="Ürün türü" required><datalist id="cl"><option>Laptop<option>Monitör<option>Masaüstü bilgisayar<option>Tablet<option>Diğer</datalist><input name="summary" maxlength="140" placeholder="Kısa özet (örn. 15.6&quot; FHD, 16 GB RAM)"><input name="product_serial" placeholder="Ürün seri no" required>
+<input name="test_date" type="date" required aria-label="Test tarihi"><input name="customer" list="cu" placeholder="Müşteri adı (mevcutsa listeden seçin)" required autocomplete="off"><datalist id="cu"></datalist><input name="officer" placeholder="Test sorumlusu" required></div>
+<button id="sb">Yükle ve QR oluştur</button></form>
+<div class="card" style="overflow:auto"><table id="t"></table></div>
+<div class="card" style="overflow:auto"><b>Müşteriler</b><table id="ct"></table></div></div>
+<p id="m" class="sub"></p></main><script src="/admin.js"></script></body></html>
