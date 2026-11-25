@@ -10,10 +10,10 @@ const FIELDS=['product','brand_model','category','summary','product_serial','tes
 const FILTERS=[['q','fq'],['ship','fs'],['customer','fc'],['category','fk'],['status','fd'],['from','ff'],['to','ft']];
 let tm;
 function qs(){const p=new URLSearchParams({sort:S.sort,dir:S.dir,page:S.page,per:S.per});FILTERS.forEach(([k,i])=>{const v=$('#'+i).value.trim();if(v)p.set(k,v)});return p}
-async function load(withCust){
+async function load(){
  const r=await api('/api/admin/docs?'+qs());
  if(r.status===401){$('#login').hidden=false;$('#panel').hidden=true;return}
- $('#login').hidden=true;$('#panel').hidden=false;if(withCust)cust();
+ $('#login').hidden=true;$('#panel').hidden=false;
  const D=await r.json();S.page=D.page;
  const k=$('#fk'),cur=k.value;
  if(k.options.length-1!==D.categories.length){k.replaceChildren(new Option('Tüm türler',''),...D.categories.map(c=>new Option(c,c)));k.value=cur}
@@ -38,28 +38,13 @@ async function load(withCust){
 ['fq','fs','fc'].forEach(i=>$('#'+i).oninput=()=>{clearTimeout(tm);tm=setTimeout(()=>{S.page=1;load()},300)});
 ['fk','fd','ff','ft'].forEach(i=>$('#'+i).onchange=()=>{S.page=1;load()});
 $('#fr').onclick=()=>{FILTERS.forEach(([k,i])=>$('#'+i).value='');S.sort='created';S.dir='desc';S.page=1;load()};
-$('#lf').onsubmit=async e=>{e.preventDefault();const r=await api('/api/login',{method:'POST',headers:J,body:JSON.stringify({password:$('#pw').value})});$('#pw').value='';if(r.ok){msg();load(true)}else msg((await r.json()).error,1)};
+$('#lf').onsubmit=async e=>{e.preventDefault();const r=await api('/api/login',{method:'POST',headers:J,body:JSON.stringify({password:$('#pw').value})});$('#pw').value='';if(r.ok){msg();load()}else msg((await r.json()).error,1)};
 $('#nf').onsubmit=async e=>{e.preventDefault();const f=e.target,id=f.dataset.replace,b=$('#sb'),t0=b.textContent;
  b.disabled=true;b.textContent='Yükleniyor…';msg('');
  try{const r=await api(id?`/api/admin/docs/${id}/replace`:'/api/admin/docs',{method:'POST',body:new FormData(f)});
   let d;try{d=await r.json()}catch{d={error:'Beklenmeyen sunucu yanıtı'}}
-  if(r.ok){msg(`Oluşturuldu: ${d.serial}`+(d.password?` · Yeni müşteri parolası: ${d.password} (yalnızca şimdi görünür; müşteriye iletin)`:' · Müşterinin mevcut parolası geçerli'));
-   f.reset();delete f.dataset.replace;b.textContent='Yükle ve QR oluştur';load(true)}
+  if(r.ok){msg(`Oluşturuldu: ${d.serial}`);
+   f.reset();delete f.dataset.replace;b.textContent='Yükle ve QR oluştur';load()}
   else{b.textContent=t0;if(r.status===401){msg('Oturum süresi doldu, yeniden giriş yapın.',1);load()}else msg(`Hata (${r.status}): ${d.error||'bilinmeyen hata'}`,1)}
  }catch(x){b.textContent=t0;msg('Bağlantı hatası: '+x.message,1)}finally{b.disabled=false}};
-load(true);
-async function cust(){
- const r=await api('/api/admin/customers');if(!r.ok)return;const l=await r.json(),t=$('#ct');t.replaceChildren();
- $('#cu').replaceChildren(...l.map(c=>{const o=E('option');o.value=c.name;return o}));
- const h=t.insertRow();['Müşteri','Belge','Parola','İşlem'].forEach(x=>h.append(E('th','',x)));
- l.forEach(c=>{const w=t.insertRow();cell(w,c.name);cell(w,String(c.n));pwCell(w,c);
-  cell(w,btn('Parolayı yenile','r',async()=>{if(!confirm(c.name+' için yeni parola üretilsin? Eskisi geçersiz olur.'))return;
-   const r=await api(`/api/admin/customers/${c.id}/reset`,{method:'POST'}),d=await r.json();
-   msg(r.ok?`${c.name} yeni parola: ${d.password} (yalnızca şimdi görünür)`:d.error)}))})}
-function pwCell(w,c){const sp=E('code','','••••');sp.style.marginRight='8px';
- const b=btn('Göster','',async()=>{
-  if(sp.dataset.v){sp.textContent='••••';delete sp.dataset.v;b.textContent='Göster';return}
-  const r=await api(`/api/admin/customers/${c.id}/password`),d=await r.json();
-  if(!d.password){sp.textContent='Kayıtlı değil, yenileyin';return}
-  sp.textContent=d.password;sp.dataset.v=1;b.textContent='Gizle'});
- cell(w,sp,b)}
+load();

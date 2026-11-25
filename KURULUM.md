@@ -108,7 +108,7 @@ docker compose logs --tail 50
 2. `ADMIN_PASSWORD` ile giriş yapın.
 3. Müşteri adı `TEST` olacak şekilde örnek bir PDF yükleyin. Ekranda çıkan **seri no**'yu kopyalayın.
 4. "QR indir" ile QR'ı alın, telefonunuzla **kurum Wi‑Fi'si dışında (mobil veri)** okutun: "Belge geçerli" sayfası açılmalı.
-5. Sayfadaki **Görüntüle** ve **İndir** düğmelerini deneyin (parola gerekmez).
+5. Sayfadaki **Görüntüle** ve **İndir** düğmelerini deneyin. PDF erişimi için parola gerekmez; QR veya seri no'yu bilen herkes geçerli belgenin orijinal PDF'ini indirebilir.
 6. Testi bitirince test belgesini panelden **Sil**'in (kayıt "geçersiz" olarak kalır; bu normaldir).
 
 ## 9. Yedekleme (en önemli iş)
