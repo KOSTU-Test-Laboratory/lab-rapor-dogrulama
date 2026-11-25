@@ -1,18 +1,19 @@
 # Test Raporu Doğrulama Sistemi
 
-Laboratuvarın PDF test raporlarının gerçekliğini müşterinin doğrulayabilmesi için web sistemi. Admin PDF yükler; sistem belgeye imzalı seri no ve QR üretir. Müşteri basılı rapordaki QR'ı okutunca belgenin geçerlilik durumunu ve özet ürün bilgilerini görür; orijinal PDF'e parolasız erişebilir (QR veya rapor seri no'su yeterlidir).
+Laboratuvarın PDF test raporlarının gerçekliğini müşterinin doğrulayabilmesi için web sistemi. Admin PDF yükler; sistem belgeye imzalı seri no ve QR üretir. Müşteri basılı rapordaki QR'ı okutunca belgenin geçerlilik durumunu ve özet ürün bilgilerini görür; müşteri parolasıyla orijinal PDF'e erişebilir.
 
 ## Akış
 1. Admin `/admin` panelinde giriş yapar; QR'sız/seri no'suz PDF'i ve belge bilgilerini formla yükler.
-2. Sistem seri no (`KTLAB-YYYY-XXXXXXXXXX-CCCC`) ve QR (PNG) üretir.
-3. Admin seri no ve QR'ı müşteriye verilecek yeni PDF'e kendisi yerleştirir.
-4. Müşteri QR'ı okutur (`/v/<token>`) veya seri no'yu girer → Geçerli/Geçersiz + özet bilgiler → orijinal PDF'i parolasız görüntüler/indirir.
+2. Sistem seri no (`KTLAB-YYYY-XXXXXXXXXX-CCCC`) ve QR (PNG) üretir. Yeni müşteriyse müşteri parolası üretilir ve **bir kez** gösterilir.
+3. Admin seri no ve QR'ı müşteriye verilecek yeni PDF'e kendisi yerleştirir, parolayı müşteriye iletir.
+4. Müşteri QR'ı okutur (`/v/<token>`) veya seri no'yu girer → Geçerli/Geçersiz + özet bilgiler → parolasıyla orijinal PDF'i görüntüler/indirir.
 
 ## Özellikler
 - Durumlar: Geçerli / Geçersiz + neden (silindi, yeni sürümle değiştirildi [güncel seri no], yönetici iptali, bilinmeyen/sahte QR). Süre sınırı yok.
 - Müşteri sayfası: ürün adı, marka/model, tür, kısa özet, test tarihi, test sorumlusu; müşteri adı ve ürün seri no maskeli.
-- PDF erişimi parolasızdır: QR'a veya rapor seri no'suna sahip olan herkes orijinal PDF'i görüntüleyip indirebilir.
+- Müşteri başına tek parola (aynı müşterinin tüm belgeleri aynı parolayla açılır); admin panelinde görüntülenebilir ve yenilenebilir.
 - Tek admin hesabı; yeni sürüm yükleme, iptal, silme; QR indirme.
+- Admin belge listesi: genel arama, gönderim no/müşteri/tür/durum/test tarihi filtreleri, sütun başlığından sıralama ve sayfalama (sunucu tarafı). Her belgede yalnızca admin panelinde görünen **gönderim no** alanı vardır. Aynı model + ürün seri no için geçerli belge varken ikincisi reddedilir ("Yeni sürüm" kullanılır).
 - Yalnızca Türkçe arayüz, KVKK bilgilendirme bölümü, logoya uygun yeşil-beyaz hareketli tasarım.
 
 ## Dosyalar
@@ -28,18 +29,18 @@ Laboratuvarın PDF test raporlarının gerçekliğini müşterinin doğrulayabil
 ## Güvenlik katmanları
 - **Seri no:** 10 rastgele karakter + HMAC kontrol kodu. **QR:** 128 bit rastgele değer + HMAC imzası; sahte kodlar veritabanına bakılmadan reddedilir. Anahtarlar `QR_SECRET`'tan HKDF ile ayrı türetilir.
 - **Kurum imzası:** Her belge Ed25519 ile imzalanır (seri no + PDF SHA-256). Açık anahtar: `/.well-known/kurum-imza.pem`. İndirmede dosya çözülüp hash ve imza yeniden doğrulanır.
-- **Depolama:** PDF'ler diskte AES-256-GCM ile şifreli saklanır (sunucu sunarken çözer, hash ve imzayı doğrular).
+- **Depolama:** PDF'ler AES-256-GCM ile şifreli; parolalar scrypt ile saklanır (admin görüntüleme için ayrıca şifreli kopya).
 - **Oturum:** HS256 sabit, sunucuda iptal edilebilir JWT; `httpOnly` + `SameSite=Strict` çerez (HTTPS'te `__Host-`); yazma isteklerinde Origin + özel başlık kontrolü.
-- **Sınırlar:** Giriş IP başına 5 hatalı deneme/15 dk; sorgular 30/dk; indirme IP başına 10/dk.
+- **Sınırlar:** Giriş IP başına 5 hatalı deneme/15 dk; sorgular 30/dk; indirme IP başına 5 hatalı deneme/15 dk, müşteri başına 20 hatalı denemede 15 dk kilit.
 - **Denetim:** Audit log hash zinciriyle bağlıdır; `GET /api/admin/audit` kurcalamayı (`chain_ok`) gösterir.
 - **Diğer:** Sıkı CSP, referrer yok, `/api` önbelleksiz, girdi temizliği, güvensiz ayarla sunucu başlamaz; konteyner salt okunur, yetkisiz, yalnızca `127.0.0.1`'e bağlı.
 
 ## Veri modeli (SQLite, `DATA_DIR`)
-`docs` (seri no, token, ürün alanları, müşteri adı, durum/neden, PDF SHA-256, imza), `audit` (zincirli kayıt). PDF'ler `pdfs/`, imza anahtarları `keys/` altında.
+`docs` (seri no, token, ürün alanları, müşteri, durum/neden, PDF SHA-256, imza, müşteri bağlantısı), `customers` (ad, parola özeti, şifreli parola), `audit` (zincirli kayıt). PDF'ler `pdfs/`, imza anahtarları `keys/` altında.
 
 ## API
-**Herkese açık:** `GET /api/verify/:token` · `GET /api/lookup?serial=` · `GET /api/download?token=` veya `?serial=` · `GET /api/public-key` · `GET /.well-known/kurum-imza.pem` · `GET /health`
-**Admin:** `POST /api/login` · `POST /api/logout` · `GET|POST /api/admin/docs` · `POST /api/admin/docs/:id/replace|invalidate` · `DELETE /api/admin/docs/:id` · `GET /api/admin/docs/:id/qr.png` · `GET /api/admin/audit`
+**Herkese açık:** `GET /api/verify/:token` · `GET /api/lookup?serial=` · `POST /api/download` · `GET /api/public-key` · `GET /.well-known/kurum-imza.pem` · `GET /health`
+**Admin:** `POST /api/login` · `POST /api/logout` · `GET|POST /api/admin/docs` · `POST /api/admin/docs/:id/replace|invalidate` · `DELETE /api/admin/docs/:id` · `GET /api/admin/docs/:id/qr.png` · `GET /api/admin/customers` · `GET /api/admin/customers/:id/password` · `POST /api/admin/customers/:id/reset` · `GET /api/admin/audit`
 
 ## Ayarlar (`.env`)
 | Değişken | Açıklama |
@@ -54,7 +55,7 @@ Laboratuvarın PDF test raporlarının gerçekliğini müşterinin doğrulayabil
 | `DOMAIN`, `COMPOSE_FILE` | Yalnızca sunucu/HTTPS kurulumunda (bkz. `.env.example`) |
 
 ## Çalıştırma
-**Yerel test:** `.env.example` → `.env` (zorunlu değerleri doldurun; yerel değerler dosyadaki "Yerel test" bölümünde), `docker compose up -d --build`, `http://localhost:3000/admin`.
+**Yerel test:** `.env.example` → `.env` (zorunlu değerleri doldurun), `docker compose up -d --build`, `http://localhost:3000/admin`.
 **Kurumsal sunucu:** `KURULUM.md`.
 
 ## Yedekleme ve anahtarlar
@@ -63,6 +64,5 @@ Geri dönüş için **iki şey birlikte** yedeklenmelidir: `dbdata` volume'ü (v
 ## Sınırlar ve planlananlar
 - İmza ayrık (detached) Ed25519'dur; Adobe'de görünen gömülü imza (PAdES) için kurumsal sertifika gerekir.
 - Admin arayüzünde "Çıkış" düğmesi ve audit log görüntüleme ekranı yok (uç noktalar hazır).
-- PDF erişiminde parola yok: QR'a veya seri no'ya sahip herkes orijinal PDF'e ulaşır (bilinçli tercih). Erişim yalnızca IP başına hız sınırı ve audit logla izlenir.
 - 2FA yok; KVKK aydınlatma tam metni kuruma ait yer tutucu.
 - Sistem Docker'da çalıştırılarak uçtan uca test edilmemiştir; kurulumdan sonra `KURULUM.md` §8 testleri yapılmalıdır.
