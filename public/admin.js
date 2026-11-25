@@ -2,7 +2,7 @@ const $=s=>document.querySelector(s),J={'Content-Type':'application/json'};
 const api=(u,o={})=>fetch(u,{...o,headers:{'X-Requested-With':'kostu',...o.headers}});
 async function jsonApi(u,o){const r=await api(u,o);let d={};try{d=await r.json()}catch{}if(!r.ok){const e=new Error(d.error||`İstek başarısız (${r.status})`);e.status=r.status;throw e}return d}
 const qrLink=$('#qr-link');
-if(qrLink){const host=location.hostname;qrLink.href=['localhost','127.0.0.1','::1','[::1]'].includes(host)?`${location.protocol}//${host}:3001/`:'/qr/'}
+if(qrLink){const host=location.hostname,localHost=['localhost','127.0.0.1','::1','[::1]'].includes(host),localPort=['3000','3100'].includes(location.port),qrPort=location.port==='3000'?'3001':'3101';qrLink.href=localHost||localPort?`${location.protocol}//${host}:${qrPort}/`:'/qr/'}
 const E=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
 const msg=(t,err)=>{const m=$('#m');m.textContent=t||'';m.className='sub '+(err?'bad':'ok');if(t)m.scrollIntoView({block:'center',behavior:'smooth'})};
 async function perform(url,options){try{await jsonApi(url,options);await load()}catch(e){if(e.status===401){await load();$('#lm').textContent='Oturum süresi doldu; yeniden giriş yapın.'}else msg(e.message,1)}}
