@@ -2,13 +2,40 @@ services:
   app:
     build: .
     restart: unless-stopped
-    env_file: .env
-    environment: {DATA_DIR: /data}
+    environment:
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD gerekli}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET gerekli}
+      QR_SECRET: ${QR_SECRET:?QR_SECRET gerekli}
+      BASE_URL: ${BASE_URL:-http://localhost:3000}
+      COOKIE_SECURE: ${COOKIE_SECURE:-0}
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+      DATA_DIR: /data
     volumes: [dbdata:/data]
-    ports: ["${BIND:-127.0.0.1}:3000:3000"]
+    expose: ["3000"]
     read_only: true
     tmpfs: [/tmp]
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
+  qr:
+    build: .
+    command: ["node", "qr-generator/server.js"]
+    restart: unless-stopped
+    environment:
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD gerekli}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET gerekli}
+      QR_ID_SECRET: ${QR_ID_SECRET:?QR_ID_SECRET gerekli}
+      BASE_URL: ${BASE_URL:-http://localhost:3000}
+      COOKIE_SECURE: ${COOKIE_SECURE:-0}
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+    expose: ["3001"]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
 volumes:
   dbdata: {}

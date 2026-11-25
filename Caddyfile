@@ -1,4 +1,11 @@
 {$DOMAIN} {
 	encode gzip
-	reverse_proxy app:3000
+	@qr_root path /qr
+	redir @qr_root /qr/ 308
+	handle_path /qr/* {
+		reverse_proxy qr:3001
+	}
+	handle {
+		reverse_proxy app:3000
+	}
 }

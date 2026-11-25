@@ -13,13 +13,13 @@ const m=location.pathname.match(/^\/v\/([\w.-]+)/);if(m)show('/api/verify/'+m[1]
 $('#f').onsubmit=e=>{e.preventDefault();const v=$('#s').value;show('/api/lookup?serial='+encodeURIComponent(v),{serial:v})};
 
 function extra(c,d,ref){
- if(d.signed)c.append(E('p','ok','✓ Kurum dijital imzası doğrulandı · Anahtar: '+d.fp.slice(0,12)));
+ if(d.signed)c.append(E('p','ok','✓ Sunucu içi Ed25519 imza ve dosya bütünlüğü kontrolü başarılı · Anahtar parmak izi: '+d.fp.slice(0,12)));
  const s=E('div','acc');c.append(s);s.append(E('h3','','Orijinal belgeye eriş'));
  if(!d.can_dl){s.append(E('p','sub','Bu belge için çevrimiçi erişim tanımlı değil. Lütfen laboratuvarla iletişime geçin.'));return}
  const w=E('div','row'),v=E('button','','Görüntüle'),dn=E('button','s2','İndir'),m=E('p','bad'),bs=[v,dn];
  v.style.width=dn.style.width='auto';
  v.onclick=()=>getDoc(d,ref,bs,m,1);dn.onclick=()=>getDoc(d,ref,bs,m,0);
- s.append(E('p','sub','Seri no/QR içermeyen orijinal PDF’e buradan erişebilirsiniz.'),w,m);w.append(v,dn)}
+ s.append(E('p','sub','Sisteme yüklenen, QR kodu eklenmiş test raporunun PDF kopyasına buradan erişebilirsiniz.'),w,m);w.append(v,dn)}
 async function getDoc(d,ref,bs,m,view){
  m.textContent='';
  const w=view?window.open('','_blank'):null;bs.forEach(b=>b.disabled=true);

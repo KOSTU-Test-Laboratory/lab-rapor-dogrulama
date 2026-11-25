@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QR Üretici</title>
+<style>
+*{box-sizing:border-box}
+body{font:16px/1.5 system-ui,"Segoe UI",sans-serif;color:#0f3b57;background:#f4fbf6;margin:0;min-height:100vh}
+main{max-width:620px;margin:36px auto;padding:0 16px}
+.card{background:#fff;border-radius:20px;padding:24px;margin-bottom:16px;box-shadow:0 10px 40px #0f3b571f}
+.brand{text-align:center}.logo{width:96px;height:auto}h1{font-size:1.5rem;margin:10px 0 4px}form{display:grid;gap:12px}
+input,button{font:inherit;border:2px solid #cfe5d7;border-radius:12px;padding:11px;color:#0f3b57;background:#fff}
+input:focus-visible,button:focus-visible,.button:focus-visible{outline:0;border-color:#1ea44b;box-shadow:0 0 0 4px #1ea44b40}
+button{background:#1ea44b;color:#fff;border:0;font-weight:600;cursor:pointer;transition:transform .2s,box-shadow .2s}
+button:hover{transform:translateY(-2px);box-shadow:0 8px 20px #1ea44b66}
+button:disabled{opacity:.5;cursor:wait}.row{display:flex;gap:10px;flex-wrap:wrap}.button{display:inline-block;background:#0f3b57;color:#fff;text-decoration:none;border-radius:10px;padding:11px;font-weight:600}
+#result{text-align:center;overflow-wrap:anywhere}#qr{width:min(100%,360px);display:block;margin:16px auto}
+.error{color:#c0392b}.muted{color:#4b6b7c}#logout{background:#0f3b57}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+<section class="card brand"><img class="logo" src="/logo.png" alt="KOSTÜ"><h1>QR üretici</h1><p class="muted">QR’sız PDF’i yükleyin. Dosya yalnızca bellekte işlenir ve kaydedilmez.</p></section>
+<section class="card" id="login-card"><form id="login"><label for="password">Yönetici parolası</label><input id="password" type="password" required autocomplete="current-password"><button>Giriş yap</button><p class="error" id="login-error" role="alert"></p></form></section>
+<section class="card" id="panel" hidden>
+<form id="generate"><label for="pdf">QR eklenecek raporun QR’sız PDF’i</label><input id="pdf" name="pdf" type="file" accept="application/pdf" required><button id="generate-button">QR oluştur</button><p class="error" id="error" role="alert"></p></form>
+<div id="result" hidden aria-live="polite"><img id="qr" alt="Üretilen QR kodu"><p><b>QR tokenı</b><br><code id="token"></code></p><div class="row"><button id="copy" type="button">Tokenı kopyala</button><a class="button" id="download" download="rapor-qr.png">QR indir</a></div><p class="muted">QR’ı rapora ekleyin; son PDF’i bu token ile doğrulama sistemine yükleyin.</p></div>
+<button id="logout" type="button">Çıkış</button>
+</section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

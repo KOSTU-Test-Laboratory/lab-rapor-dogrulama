@@ -1,16 +1,18 @@
 <!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Yönetim</title><link rel="icon" href="/logo.png"><link rel="stylesheet" href="/style.css"></head><body>
 <i class="bl b1"></i><i class="bl b2"></i>
-<header><img class="logo" src="/logo.png" alt="KOSTÜ"><h1>Yönetim paneli</h1></header>
+<header><img class="logo" src="/logo.png" alt="KOSTÜ"><h1>Yönetim paneli</h1><p><a class="s" id="qr-link" href="/qr/" target="_blank" rel="noopener">QR üreticiye git</a></p></header>
 <main style="max-width:920px">
-<div id="login" class="card"><form id="lf" class="row"><input id="pw" type="password" placeholder="Yönetici parolası" required autocomplete="current-password"><button style="width:auto">Giriş yap</button></form></div>
+<div id="login" class="card"><form id="lf" class="row"><input id="pw" type="password" placeholder="Yönetici parolası" required autocomplete="current-password" aria-label="Yönetici parolası"><button style="width:auto">Giriş yap</button></form><p id="lm" class="bad" role="status" aria-live="polite"></p></div>
 <div id="panel" hidden>
+<div class="card row" style="justify-content:flex-end;padding:12px"><button id="lo" class="s2" style="width:auto">Çıkış</button></div>
 <form id="nf" class="card"><b>Yeni belge</b><div class="g">
-<input type="file" name="pdf" accept="application/pdf" required>
-<input name="product" placeholder="Ürün adı" required><input name="brand_model" placeholder="Marka / Model" required><input name="category" list="cl" placeholder="Ürün türü" required><datalist id="cl"><option>Laptop<option>Monitör<option>Masaüstü bilgisayar<option>Tablet<option>Diğer</datalist><input name="summary" maxlength="140" placeholder="Kısa özet (örn. 15.6&quot; FHD, 16 GB RAM)"><input name="product_serial" placeholder="Ürün seri no" required>
-<input name="test_date" type="date" required aria-label="Test tarihi"><input name="customer" placeholder="Müşteri adı" required autocomplete="off"><input name="officer" placeholder="Test sorumlusu" required><input name="ship_no" placeholder="Gönderim no" required></div>
-<button id="sb">Yükle ve QR oluştur</button><p id="m" class="sub" role="status" style="font-weight:600;word-break:break-word"></p></form>
+<input type="file" name="pdf" accept="application/pdf" required aria-label="QR kodu eklenmiş test raporu PDF'i">
+<input name="qr_token" placeholder="QR üreticisinden alınan token" required autocomplete="off" aria-label="QR token">
+<input name="product" placeholder="Ürün adı" required aria-label="Ürün adı"><input name="brand_model" placeholder="Marka / Model" required aria-label="Marka ve model"><input name="category" list="cl" placeholder="Ürün türü" required aria-label="Ürün türü"><datalist id="cl"><option>Laptop<option>Monitör<option>Masaüstü bilgisayar<option>Tablet<option>Diğer</datalist><input name="summary" maxlength="140" placeholder="Kısa özet (örn. 15.6&quot; FHD, 16 GB RAM)" aria-label="Kısa ürün özeti"><input name="product_serial" placeholder="Ürün seri no" required aria-label="Ürün seri numarası">
+<input name="test_date" type="date" required aria-label="Test tarihi"><input name="customer" placeholder="Müşteri adı" required autocomplete="off" aria-label="Müşteri adı"><input name="officer" placeholder="Test sorumlusu" required aria-label="Test sorumlusu"></div>
+<button id="sb">Yükle ve seri no oluştur</button><p id="m" class="sub" role="status" style="font-weight:600;word-break:break-word"></p></form>
 <div class="card"><div class="g">
-<input id="fq" placeholder="Ara: seri no, ürün, model, müşteri, gönderim no…" aria-label="Ara"><input id="fs" placeholder="Gönderim no" aria-label="Gönderim no"><input id="fc" placeholder="Müşteri" aria-label="Müşteri">
+<input id="fq" placeholder="Ara: seri no, ürün, model, müşteri…" aria-label="Ara"><input id="fc" placeholder="Müşteri" aria-label="Müşteri">
 <select id="fk" aria-label="Ürün türü"><option value="">Tüm türler</option></select><select id="fd" aria-label="Durum"><option value="">Tüm durumlar</option><option value="valid">Geçerli</option><option value="invalid">Geçersiz</option></select>
 <input id="ff" type="date" title="Test tarihi (başlangıç)" aria-label="Test tarihi başlangıç"><input id="ft" type="date" title="Test tarihi (bitiş)" aria-label="Test tarihi bitiş"></div>
 <div class="row" style="align-items:center"><button id="fr" class="s2" style="width:auto">Filtreleri temizle</button><span id="fi" style="margin-left:auto;color:var(--m)"></span></div></div>

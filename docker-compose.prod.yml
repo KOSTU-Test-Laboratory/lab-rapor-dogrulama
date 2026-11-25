@@ -1,4 +1,4 @@
-# Sunucu (HTTPS) kurulumu için: .env içinde COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
+# Production: .env içindeki COMPOSE_FILE, bu dosyayı temel Compose dosyasıyla birlikte yükler.
 services:
   caddy:
     image: caddy:2
@@ -7,7 +7,11 @@ services:
     environment:
       DOMAIN: ${DOMAIN:?DOMAIN tanımlı olmalı}
     volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "caddy_data:/data", "caddy_config:/config"]
-    depends_on: [app]
+    depends_on:
+      app:
+        condition: service_healthy
+      qr:
+        condition: service_healthy
 volumes:
   caddy_data: {}
   caddy_config: {}
