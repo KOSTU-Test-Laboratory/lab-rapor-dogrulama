@@ -25,10 +25,11 @@ Laboratuvarın PDF test raporlarının gerçekliğini müşterinin doğrulayabil
 | `qr-generator/` | PDF'i kalıcı saklamadan QR üreten bağımsız uygulama |
 | `public/` | `index.html`/`app.js` müşteri sayfası; `admin.html`/`admin.js` yönetim; `style.css`; `logo.png` |
 | `Dockerfile`, `docker-compose.yml`, `.dockerignore` | Doğrulama ve QR servisleri; kalıcı veri volume'ü (`dbdata`), build bağlamından sır/veri hariç |
-| `docker-compose.local.yml` | Yerel testte servis portlarını yalnızca `127.0.0.1` üzerinden açar |
+| `docker-compose.local.yml` | Yerel testte app ve QR servislerini host'un 3100/3101 portlarında yayımlar |
 | `docker-compose.prod.yml`, `Caddyfile` | Sunucuda otomatik HTTPS (Caddy) |
 | `.env.example` | Ayar şablonu |
 | `KURULUM.md` | Fiziksel sunucu kurulum rehberi |
+| `DEVELOPER_DESIGN.md` | Mimari, akışlar, API'ler, güvenlik kararları ve geliştirici komutları |
 
 ## Güvenlik katmanları
 - **Seri no:** Yeni belgelerde son PDF SHA-256 özetinin ilk 32 hex karakteri; tam özet saklanır ve imzalanır. Eski tam uzunluktaki ve legacy seri numaraları doğrulanmaya devam eder. Kısa seri no çakışması kaydı reddettirir. **QR tokenı:** Kaynak PDF hash'inin `QR_ID_SECRET` ile HMAC'i; aynı kaynak PDF için aynı QR oluşur. Verifier yeni tokenı yalnızca admin yükleme sırasında kayda bağlandıktan sonra kabul eder.
@@ -37,7 +38,7 @@ Laboratuvarın PDF test raporlarının gerçekliğini müşterinin doğrulayabil
 - **Oturum:** HS256 sabit, sunucuda iptal edilebilir JWT; `httpOnly` + `SameSite=Strict` çerez (HTTPS'te `__Host-`); yazma isteklerinde Origin + özel başlık kontrolü.
 - **Sınırlar:** Giriş IP başına 5 hatalı deneme/15 dk; doğrulama sorguları IP başına 30/dk; PDF indirmeleri IP başına 10/dk ile sınırlıdır.
 - **Denetim:** Audit log hash zinciriyle bağlıdır; `GET /api/admin/audit` kurcalamayı (`chain_ok`) gösterir. Sorgu logları IP içerir ve şu anda otomatik saklama/silme süresi tanımlı değildir; kurum politikası belirlenmeden üretimde bu logların süresiz tutulması gözden geçirilmelidir.
-- **Diğer:** Sıkı CSP, referrer yok, `/api` önbelleksiz, girdi temizliği, güvensiz ayarla sunucu başlamaz; konteynerler salt okunur ve yetkisiz çalışır. Üretimde yalnızca Caddy'nin 80/443 portları host'a açılır; app ve QR servislerine Docker ağı içinden erişilir. Yerel test portları ayrı Compose dosyasıyla yalnızca `127.0.0.1`'e bağlanır.
+- **Diğer:** Sıkı CSP, referrer yok, `/api` önbelleksiz, girdi temizliği, güvensiz ayarla sunucu başlamaz; konteynerler salt okunur ve yetkisiz çalışır. Üretimde yalnızca Caddy'nin 80/443 portları host'a açılır; app ve QR servislerine Docker ağı içinden erişilir. Yerel Compose dosyası 3100/3101 portlarını host arayüzlerinde yayımlar; LAN erişiminde firewall ile sınırlandırın.
 
 ## Veri modeli (SQLite, `DATA_DIR`)
 `docs` (seri no, QR tokenı, ürün alanları, müşteri adı, durum/neden, son PDF'in SHA-256 hash'i ve imza), `audit` (zincirli kayıt). Müşteri adı belge bilgisidir; müşteri hesabı/parolası yoktur. QR üretici PDF'i kalıcı saklamaz. Doğrulama sistemindeki PDF'ler `pdfs/`, imza anahtarları `keys/` altında.
@@ -61,7 +62,7 @@ Laboratuvarın PDF test raporlarının gerçekliğini müşterinin doğrulayabil
 
 ## Ağ ve çalıştırma
 - **Üretim:** Tek alan adı kullanılır. Caddy dışarıya yalnızca 80/443 portlarını açar; doğrulama servisi `app:3000`, QR servisi `qr:3001` Docker'ın iç ağında kalır. Müşteri sayfası `/`, admin `/admin`, QR üretici `/qr/` yolundadır. Bu nedenle 3000/3001 portlarının üretim sunucusunda boşta olması veya internete açılması gerekmez.
-- **Yerel test:** Yeni ortamda `.env.example` dosyasını `.env` olarak kopyalayın; mevcut `.env` dosyasını asla ezmeyin. `CHANGE_ME`/`GENERATE_*` değerlerini değiştirin ve üç anahtarı ayrı ayrı `openssl rand -hex 32` ile üretin. Sonra `docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build` çalıştırın. QR üretici `http://localhost:3001`, doğrulama paneli `http://localhost:3000/admin` adresindedir.
+- **Yerel test:** Yeni ortamda `.env.example` dosyasını `.env` olarak kopyalayın; mevcut `.env` dosyasını asla ezmeyin. `CHANGE_ME`/`GENERATE_*` değerlerini değiştirin ve anahtarları ayrı ayrı `openssl rand -hex 32` ile üretin. Sonra `docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build` çalıştırın. QR üretici `http://localhost:3101`, doğrulama paneli `http://localhost:3100/admin` adresindedir. Diğer cihazlardan erişmek için `BASE_URL`'i erişilebilir host IP'sine ve `:3100` portuna ayarlayın; yalnızca güvenilir ağda kullanın.
 - **Kurumsal sunucu:** `KURULUM.md` içindeki üretim ayarlarını kullanın; `.env` içindeki `COMPOSE_FILE` Caddy'li yapılandırmayı seçer.
 
 ## Yedekleme ve anahtarlar
